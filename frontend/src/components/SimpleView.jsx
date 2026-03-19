@@ -15,9 +15,13 @@ const ROWS = [
   { key: 'eps_rev_1m', label: 'EPS Rev 1M', fmt: (v) => fmtPct(v), color: true },
   { key: 'eps_rev_3m', label: 'EPS Rev 3M', fmt: (v) => fmtPct(v), color: true },
   { key: 'div_rr', type: 'divider', label: '진입 손익비' },
-  { key: 'rr_target', label: '목표가', type: 'rr_target' },
-  { key: 'rr_stop', label: '손절가', type: 'rr_stop' },
-  { key: 'rr_ratio', label: 'R:R', type: 'rr_ratio' },
+  { key: 'rr_stop', label: '손절가', type: 'rr_field', field: 'stop_loss' },
+  { key: 't_per_band', label: '①PER밴드', type: 'rr_field', field: 't_per_band' },
+  { key: 't_cons_1m', label: '②컨센1M', type: 'rr_field', field: 't_cons_1m' },
+  { key: 't_cons_top25', label: '③컨센Top25', type: 'rr_field', field: 't_cons_top25' },
+  { key: 'rr_per_band', label: 'R:R ①', type: 'rr_ratio', field: 'rr_per_band' },
+  { key: 'rr_cons_1m', label: 'R:R ②', type: 'rr_ratio', field: 'rr_cons_1m' },
+  { key: 'rr_cons_top25', label: 'R:R ③', type: 'rr_ratio', field: 'rr_cons_top25' },
 ];
 
 // 밴드 내 위치 계산 (0~100)
@@ -33,20 +37,6 @@ function posColor(pos) {
   if (pos <= 50) return 'text-yellow-400';
   if (pos <= 75) return 'text-orange-400';
   return 'text-red-400';
-}
-
-// 손익비 계산
-function calcRiskReward(s) {
-  const price = s.current_price;
-  const perHigh = s.band?.per_5y_high;
-  const eps = s.eps_26e;
-  if (!price || !perHigh || !eps || eps <= 0) return { target: null, stop: null, rr: null };
-
-  const target = Math.round(perHigh * eps);
-  const stop = Math.round(price * 0.9);
-  const risk = price - stop;
-  const rr = risk > 0 ? Math.round(((target - price) / risk) * 100) / 100 : null;
-  return { target, stop, rr };
 }
 
 function rrColor(rr) {
@@ -79,7 +69,7 @@ export default function SimpleView({ data }) {
       {etc.length > 0 && <Section title="미분류" stocks={etc} />}
       <p className="text-[10px] text-gray-600 mt-4">
         * PER/PBR 위치: 5년 밴드 내 Fwd 값의 백분위 (0=역대 최저, 100=역대 최고). PER 50x 이상, PBR 20x 이상 이상치 제거.
-        <br />* 손익비: 목표가=PER밴드 5Y 상단×26E EPS, 손절가=현재가×0.9. R:R ≥3 초록, ≥2 노랑, &lt;2 빨강.
+        <br />* 손익비: ①PER밴드 상단×26E EPS ②컨센서스 평균 ③컨센서스 Top25. 손절가=현재가×0.9. R:R ≥3 초록, ≥2 노랑, &lt;2 빨강.
       </p>
     </div>
   );
@@ -140,27 +130,20 @@ function Section({ title, subtitle, stocks }) {
                         </td>
                       );
                     }
-                    // 손익비 관련
-                    if (row.type === 'rr_target' || row.type === 'rr_stop' || row.type === 'rr_ratio') {
-                      const rr = calcRiskReward(s);
-                      if (row.type === 'rr_target') {
-                        return (
-                          <td key={s.stock_code} className="px-3 py-2 text-center font-mono text-gray-200">
-                            {fmtPrice(rr.target)}
-                          </td>
-                        );
-                      }
-                      if (row.type === 'rr_stop') {
-                        return (
-                          <td key={s.stock_code} className="px-3 py-2 text-center font-mono text-gray-200">
-                            {fmtPrice(rr.stop)}
-                          </td>
-                        );
-                      }
-                      // rr_ratio
+                    // 손익비 관련 — 백엔드 riskReward 데이터 사용
+                    if (row.type === 'rr_field') {
+                      const v = s.riskReward?.[row.field];
                       return (
-                        <td key={s.stock_code} className={`px-3 py-2 text-center font-mono font-bold ${rrColor(rr.rr)}`}>
-                          {fmtRR(rr.rr)}
+                        <td key={s.stock_code} className="px-3 py-2 text-center font-mono text-gray-200">
+                          {fmtPrice(v)}
+                        </td>
+                      );
+                    }
+                    if (row.type === 'rr_ratio') {
+                      const v = s.riskReward?.[row.field];
+                      return (
+                        <td key={s.stock_code} className={`px-3 py-2 text-center font-mono font-bold ${rrColor(v)}`}>
+                          {fmtRR(v)}
                         </td>
                       );
                     }

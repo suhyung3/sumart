@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { fetchFundamentals, fetchConsensusTrend, fetchValuationBand, clearCache } = require('../services/fnguideService');
+const { fetchFundamentals, fetchConsensusTrend, fetchValuationBand, fetchConsensusTargets, clearCache } = require('../services/fnguideService');
 const { calcFundamentals } = require('../services/calcService');
 const { round } = require('../utils/helpers');
 
@@ -41,13 +41,19 @@ router.get('/dashboard', (req, res) => {
       };
     });
 
+    // riskReward 계산
+    const withRR = result.map((row) => {
+      const riskReward = calcRiskReward(row);
+      return { ...row, riskReward };
+    });
+
     // 전체 데이터 중 가장 오래된 fetched_at
     const oldest = rows.reduce((min, r) => {
       if (!r.fetched_at) return min;
       return !min || r.fetched_at < min ? r.fetched_at : min;
     }, null);
 
-    res.json({ data: result, lastUpdated: oldest });
+    res.json({ data: withRR, lastUpdated: oldest });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -98,6 +104,40 @@ router.get('/:code/band', (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+/**
+ * 손익비 계산 (3가지 목표가)
+ */
+function calcRiskReward(row) {
+  const currentPrice = row.current_price;
+  if (!currentPrice) return null;
+
+  const stopLoss = Math.round(currentPrice * 0.9);
+
+  // 1) PER밴드 상단 × 26E EPS
+  const perHigh = row.band?.per_5y_high;
+  const tPerBand = (perHigh && row.eps_26e) ? Math.round(perHigh * row.eps_26e) : null;
+  // 2) 컨센서스 평균
+  const tCons1m = row.cons_target_cons || null;
+  // 3) 컨센서스 상위25%
+  const tConsTop25 = row.cons_target_opt || null;
+
+  const calcRR = (target) => {
+    if (!target || !stopLoss || currentPrice <= stopLoss) return null;
+    return Math.round(((target - currentPrice) / (currentPrice - stopLoss)) * 100) / 100;
+  };
+
+  return {
+    current_price: currentPrice,
+    stop_loss: stopLoss,
+    t_per_band: tPerBand,
+    t_cons_1m: tCons1m,
+    t_cons_top25: tConsTop25,
+    rr_per_band: calcRR(tPerBand),
+    rr_cons_1m: calcRR(tCons1m),
+    rr_cons_top25: calcRR(tConsTop25),
+  };
+}
 
 /**
  * 단일 종목 새로고침 (FnGuide 스크래핑 + 계산 + DB 저장)
@@ -177,7 +217,18 @@ async function refreshOne(stockCode, stockName) {
     r(calc.eps_rev_1m), r(calc.eps_rev_3m), calc.per_27e || null
   );
 
-  // 6. 밸류에이션 밴드 저장 (PER + PBR)
+  // 6. 컨센서스 목표가 저장
+  try {
+    const consTargets = await fetchConsensusTargets(stockCode);
+    if (consTargets) {
+      db.prepare('UPDATE fundamentals SET cons_target_cons=?, cons_target_opt=? WHERE stock_code=?')
+        .run(consTargets.conservative, consTargets.optimistic, stockCode);
+    }
+  } catch (e) {
+    console.warn(`[ConsTarget] ${stockCode} 저장 실패:`, e.message);
+  }
+
+  // 7. 밸류에이션 밴드 저장 (PER + PBR)
   try {
     const bands = await fetchValuationBand(stockCode);
     if (bands && bands.length > 0) {

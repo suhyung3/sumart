@@ -317,14 +317,61 @@ async function fetchValuationBand(stockCode) {
   }
 }
 
+/**
+ * 컨센서스 목표가 (FnGuide JSON API)
+ * - conservative: 전체 평균 (AVG_PRC)
+ * - optimistic: 최근 1개월 상위 25% 평균
+ */
+async function fetchConsensusTargets(stockCode) {
+  if (process.env.FNGUIDE_SCRAPE_ENABLED === 'false') return null;
+
+  const cacheKey = `ctarget_${stockCode}`;
+  const cached = cache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+
+  try {
+    const { data } = await axios.get(
+      `https://comp.fnguide.com/SVO2/json/data/01_06/03_A${stockCode}.json`,
+      { timeout: TIMEOUT_MS, headers: { ...HEADERS, Accept: 'application/json', Referer: 'https://comp.fnguide.com/' } }
+    );
+    const rows = data?.comp;
+    if (!rows?.length) return null;
+
+    // 보수적: 전체 평균 (AVG_PRC)
+    const conservative = parseInt(String(rows[0].AVG_PRC).replace(/,/g, ''), 10) || null;
+
+    // 낙관적: 최근 1개월 상위 25% 평균
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    const recentPrices = rows
+      .filter(r => new Date(r.EST_DT?.replace(/\//g, '-')) >= oneMonthAgo)
+      .map(r => parseInt(String(r.TARGET_PRC).replace(/,/g, ''), 10))
+      .filter(v => !isNaN(v))
+      .sort((a, b) => b - a);
+    let optimistic = null;
+    if (recentPrices.length > 0) {
+      const top25 = recentPrices.slice(0, Math.max(1, Math.ceil(recentPrices.length * 0.25)));
+      optimistic = Math.round(top25.reduce((a, b) => a + b, 0) / top25.length);
+    }
+
+    const result = { conservative, optimistic: optimistic || conservative };
+    cache.set(cacheKey, { data: result, ts: Date.now() });
+    return result;
+  } catch (err) {
+    console.error(`[FnGuide] ${stockCode} 컨센서스 목표가 실패:`, err.message);
+    return null;
+  }
+}
+
 function clearCache(stockCode) {
   if (stockCode) {
     cache.delete(`fund_${stockCode}`);
     cache.delete(`trend_${stockCode}`);
     cache.delete(`vband_${stockCode}`);
+    cache.delete(`ctarget_${stockCode}`);
   } else {
     cache.clear();
   }
 }
 
-module.exports = { fetchFundamentals, fetchConsensusTrend, fetchValuationBand, clearCache };
+module.exports = { fetchFundamentals, fetchConsensusTrend, fetchValuationBand, fetchConsensusTargets, clearCache };
