@@ -44,7 +44,8 @@ db.exec(`
   );
 `);
 
-// 마이그레이션: category 컬럼 추가
+// 마이그레이션
 try { db.exec("ALTER TABLE stocks ADD COLUMN category TEXT DEFAULT ''"); } catch (e) { /* already exists */ }
+try { db.exec("ALTER TABLE fundamentals ADD COLUMN per_27e REAL"); } catch (e) { /* already exists */ }
 
 module.exports = db;

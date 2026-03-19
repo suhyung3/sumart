@@ -115,19 +115,31 @@ async function refreshOne(stockCode, stockName) {
   // 3. 계산
   const calc = calcFundamentals(fnData.highlight, fnData.valuation, trend);
 
-  // 4. KIS 시총 폴백
+  // 3.5. FnGuide 종가 우선 사용
+  if (fnData.valuation?.currentPrice) {
+    calc.current_price = fnData.valuation.currentPrice;
+  }
+
+  // 4. KIS 시총/현재가 폴백 (FnGuide에서 못 가져온 경우)
   let marketCap = calc.market_cap;
-  if (!marketCap) {
+  if (!marketCap || !calc.current_price) {
     try {
       const { getPrice } = require('../services/kisService');
       const price = await getPrice(stockCode);
-      if (price?.hts_avls) {
+      if (price?.hts_avls && !marketCap) {
         marketCap = parseFloat(price.hts_avls);
+      }
+      if (price?.stck_prpr && !calc.current_price) {
         calc.current_price = parseInt(price.stck_prpr, 10) || null;
       }
     } catch (e) {
       console.warn(`[KIS] ${stockCode} 시총 폴백 실패:`, e.message);
     }
+  }
+
+  // 4.5. per_27e 계산 (현재가 / 27E EPS)
+  if (calc.current_price && calc.eps_27e && calc.eps_27e > 0) {
+    calc.per_27e = Math.round((calc.current_price / calc.eps_27e) * 10) / 10;
   }
 
   // 5. DB 저장 (UPSERT)
@@ -141,9 +153,9 @@ async function refreshOne(stockCode, stockName) {
       eps_26e, eps_27e,
       opm_26e, opm_27e,
       fwd_per, fwd_pbr, peg, roe,
-      eps_rev_1m, eps_rev_3m,
+      eps_rev_1m, eps_rev_3m, per_27e,
       fetched_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'))
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'))
     ON CONFLICT(stock_code) DO UPDATE SET
       stock_name=excluded.stock_name, current_price=excluded.current_price, market_cap=excluded.market_cap,
       rev_26e=excluded.rev_26e, rev_27e=excluded.rev_27e, rev_yoy_26=excluded.rev_yoy_26, rev_yoy_27=excluded.rev_yoy_27,
@@ -152,7 +164,7 @@ async function refreshOne(stockCode, stockName) {
       eps_26e=excluded.eps_26e, eps_27e=excluded.eps_27e,
       opm_26e=excluded.opm_26e, opm_27e=excluded.opm_27e,
       fwd_per=excluded.fwd_per, fwd_pbr=excluded.fwd_pbr, peg=excluded.peg, roe=excluded.roe,
-      eps_rev_1m=excluded.eps_rev_1m, eps_rev_3m=excluded.eps_rev_3m,
+      eps_rev_1m=excluded.eps_rev_1m, eps_rev_3m=excluded.eps_rev_3m, per_27e=excluded.per_27e,
       fetched_at=excluded.fetched_at
   `).run(
     stockCode, stockName, calc.current_price || null, marketCap,
@@ -162,7 +174,7 @@ async function refreshOne(stockCode, stockName) {
     r(calc.eps_26e), r(calc.eps_27e),
     r(calc.opm_26e), r(calc.opm_27e),
     r(calc.fwd_per), r(calc.fwd_pbr, 2), r(calc.peg, 2), r(calc.roe),
-    r(calc.eps_rev_1m), r(calc.eps_rev_3m)
+    r(calc.eps_rev_1m), r(calc.eps_rev_3m), calc.per_27e || null
   );
 
   // 6. 밸류에이션 밴드 저장 (PER + PBR)

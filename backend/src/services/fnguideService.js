@@ -63,6 +63,7 @@ function extractValuation($) {
     pbr: null,
     marketCap: null,
     dividendYield: null,
+    currentPrice: null,
   };
 
   try {
@@ -84,6 +85,11 @@ function extractValuation($) {
     // 시가총액 추출 (억 원)
     const mcMatch = snapshotText.match(/시가총액\s*[\(억\)]*\s*([\d,]+)/);
     if (mcMatch) result.marketCap = parseFloat(mcMatch[1].replace(/,/g, ''));
+
+    // 종가 추출 (svdMainGrid1 영역: "종가/ 전일대비/ 수익률 208,500/ ...")
+    const priceText = $('#svdMainGrid1').text();
+    const priceMatch = priceText.match(/종가[\s/]*전일대비[\s/]*수익률\s*([\d,]+)/);
+    if (priceMatch) result.currentPrice = parseInt(priceMatch[1].replace(/,/g, ''), 10);
   } catch (err) {
     console.error('[FnGuide] 밸류에이션 파싱 실패:', err.message);
   }

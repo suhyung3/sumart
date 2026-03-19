@@ -27,8 +27,9 @@ export default function PerCompareChart({ stocks, onClose }) {
           }
         }
 
-        let per27e = null;
-        if (s.current_price && s.eps_27e && s.eps_27e > 0) {
+        // DB에 저장된 per_27e 우선, 없으면 클라이언트 계산
+        let per27e = s.per_27e || null;
+        if (!per27e && s.current_price && s.eps_27e && s.eps_27e > 0) {
           per27e = Math.round((s.current_price / s.eps_27e) * 10) / 10;
         }
 
