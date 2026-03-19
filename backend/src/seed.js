@@ -7,7 +7,7 @@ const SEED_STOCKS = [
   { code: '000660', name: 'SK하이닉스', category: '성장주' },
   { code: '009150', name: '삼성전기', category: '성장주' },
   { code: '003230', name: '삼양식품', category: '성장주' },
-  { code: '071055', name: '한국금융지주우', category: '성장주' },
+  { code: '278470', name: '에이피알', category: '성장주' },
   { code: '039490', name: '키움증권', category: '성장주' },
   { code: '006800', name: '미래에셋증권', category: '성장주' },
   { code: '298040', name: '효성중공업', category: '성장주' },

@@ -1,8 +1,8 @@
 import { fmtNum, fmtPct, fmtPer, pctColor } from '../utils/format';
 
 const ROWS = [
-  { key: 'op_26e', label: "OP 26E", fmt: (v) => fmtNum(v) },
-  { key: 'op_27e', label: "OP 27E", fmt: (v) => fmtNum(v) },
+  { key: 'op_26e', label: "영익 26E", fmt: (v) => fmtNum(v) },
+  { key: 'op_27e', label: "영익 27E", fmt: (v) => fmtNum(v) },
   { key: 'opm_26e', label: 'OPM 26E', fmt: (v) => v != null ? `${v.toFixed(1)}%` : '-' },
   { key: 'opm_27e', label: 'OPM 27E', fmt: (v) => v != null ? `${v.toFixed(1)}%` : '-' },
   { key: 'fwd_per', label: 'Fwd PER', fmt: (v) => fmtPer(v) },
@@ -30,9 +30,10 @@ function posColor(pos) {
 }
 
 export default function SimpleView({ data }) {
-  const growth = data.filter((d) => d.category === '성장주');
-  const dream = data.filter((d) => d.category === '꿈주식');
-  const etc = data.filter((d) => !d.category || (d.category !== '성장주' && d.category !== '꿈주식'));
+  const byMcap = (a, b) => (b.market_cap || 0) - (a.market_cap || 0);
+  const growth = data.filter((d) => d.category === '성장주').sort(byMcap);
+  const dream = data.filter((d) => d.category === '꿈주식').sort(byMcap);
+  const etc = data.filter((d) => !d.category || (d.category !== '성장주' && d.category !== '꿈주식')).sort(byMcap);
 
   return (
     <div className="space-y-8">

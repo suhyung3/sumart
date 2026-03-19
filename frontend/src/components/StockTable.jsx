@@ -1,41 +1,33 @@
 import { useState, useCallback } from 'react';
 import { fmtNum, fmtPct, fmtPer, pctColor } from '../utils/format';
 import EpsRevisionBadge from './EpsRevisionBadge';
-import PerBandChart from './PerBandChart';
 
 const COLUMNS = [
   { key: 'stock_name', label: '종목명', align: 'left' },
-  { key: 'market_cap', label: '시총(억)', type: 'num' },
-  { key: 'rev_26e', label: '매출 26E', type: 'num' },
-  { key: 'rev_yoy_26', label: 'YoY', type: 'pct' },
-  { key: 'rev_27e', label: '매출 27E', type: 'num' },
-  { key: 'rev_yoy_27', label: 'YoY', type: 'pct' },
-  { key: 'op_26e', label: '영업이익 26E', type: 'num' },
-  { key: 'op_yoy_26', label: 'YoY', type: 'pct' },
-  { key: 'op_27e', label: '영업이익 27E', type: 'num' },
-  { key: 'op_yoy_27', label: 'YoY', type: 'pct' },
-  { key: 'ni_26e', label: '순이익 26E', type: 'num' },
-  { key: 'ni_yoy_26', label: 'YoY', type: 'pct' },
-  { key: 'ni_27e', label: '순이익 27E', type: 'num' },
-  { key: 'ni_yoy_27', label: 'YoY', type: 'pct' },
-  { key: 'opm_26e', label: 'OPM 26E', type: 'pct_plain' },
-  { key: 'opm_27e', label: 'OPM 27E', type: 'pct_plain' },
-  { key: 'fwd_per', label: 'Fwd PER', type: 'per' },
-  { key: 'fwd_pbr', label: 'PBR', type: 'per' },
-  { key: 'peg', label: 'PEG', type: 'per' },
-  { key: 'roe', label: 'ROE', type: 'pct_plain' },
+  { key: 'market_cap', label: '시총(억)' },
+  { key: 'rev_26e', label: '매출 26E', yoy: 'rev_yoy_26' },
+  { key: 'rev_27e', label: '매출 27E', yoy: 'rev_yoy_27' },
+  { key: 'op_26e', label: '영익 26E', yoy: 'op_yoy_26', opm: 'opm_26e' },
+  { key: 'op_27e', label: '영익 27E', yoy: 'op_yoy_27', opm: 'opm_27e' },
+  { key: 'ni_26e', label: 'NI 26E', yoy: 'ni_yoy_26' },
+  { key: 'ni_27e', label: 'NI 27E', yoy: 'ni_yoy_27' },
+  { key: 'fwd_per', label: 'Fwd PER' },
+  { key: 'per_band', label: 'PER 5Y', type: 'band_per' },
+  { key: 'fwd_pbr', label: 'Fwd PBR' },
+  { key: 'pbr_band', label: 'PBR 5Y', type: 'band_pbr' },
+  { key: 'peg', label: 'PEG' },
+  { key: 'roe', label: 'ROE' },
   { key: 'eps_rev', label: 'EPS Rev', type: 'badge' },
-  { key: 'per_band', label: 'PER Band', type: 'chart' },
+  { key: 'fnguide', label: '', type: 'links' },
   { key: 'actions', label: '', type: 'action' },
 ];
 
 export default function StockTable({ data, onDelete }) {
-  const [sortKey, setSortKey] = useState(null);
-  const [sortAsc, setSortAsc] = useState(true);
-  const [expandedCode, setExpandedCode] = useState(null);
+  const [sortKey, setSortKey] = useState('market_cap');
+  const [sortAsc, setSortAsc] = useState(false);
 
   const handleSort = useCallback((key) => {
-    if (key === 'actions' || key === 'eps_rev' || key === 'per_band') return;
+    if (key === 'actions' || key === 'eps_rev' || key === 'per_band' || key === 'pbr_band') return;
     if (sortKey === key) {
       setSortAsc(!sortAsc);
     } else {
@@ -76,59 +68,94 @@ export default function StockTable({ data, onDelete }) {
         <tbody>
           {sorted.map((row) => (
             <tr key={row.stock_code} className="border-b border-gray-800/50 hover:bg-gray-900/50">
-              <td className="px-2 py-2 text-left font-medium text-white whitespace-nowrap">
-                {row.stock_name}
-                <span className="text-gray-600 ml-1">{row.stock_code}</span>
-              </td>
-              <td className="px-2 py-2 text-right">{fmtNum(row.market_cap)}</td>
-              <td className="px-2 py-2 text-right">{fmtNum(row.rev_26e)}</td>
-              <td className={`px-2 py-2 text-right ${pctColor(row.rev_yoy_26)}`}>{fmtPct(row.rev_yoy_26)}</td>
-              <td className="px-2 py-2 text-right">{fmtNum(row.rev_27e)}</td>
-              <td className={`px-2 py-2 text-right ${pctColor(row.rev_yoy_27)}`}>{fmtPct(row.rev_yoy_27)}</td>
-              <td className="px-2 py-2 text-right">{fmtNum(row.op_26e)}</td>
-              <td className={`px-2 py-2 text-right ${pctColor(row.op_yoy_26)}`}>{fmtPct(row.op_yoy_26)}</td>
-              <td className="px-2 py-2 text-right">{fmtNum(row.op_27e)}</td>
-              <td className={`px-2 py-2 text-right ${pctColor(row.op_yoy_27)}`}>{fmtPct(row.op_yoy_27)}</td>
-              <td className="px-2 py-2 text-right">{fmtNum(row.ni_26e)}</td>
-              <td className={`px-2 py-2 text-right ${pctColor(row.ni_yoy_26)}`}>{fmtPct(row.ni_yoy_26)}</td>
-              <td className="px-2 py-2 text-right">{fmtNum(row.ni_27e)}</td>
-              <td className={`px-2 py-2 text-right ${pctColor(row.ni_yoy_27)}`}>{fmtPct(row.ni_yoy_27)}</td>
-              <td className="px-2 py-2 text-right">{row.opm_26e != null ? `${row.opm_26e.toFixed(1)}%` : '-'}</td>
-              <td className="px-2 py-2 text-right">{row.opm_27e != null ? `${row.opm_27e.toFixed(1)}%` : '-'}</td>
-              <td className="px-2 py-2 text-right">{fmtPer(row.fwd_per)}</td>
-              <td className="px-2 py-2 text-right">{fmtPer(row.fwd_pbr)}</td>
-              <td className={`px-2 py-2 text-right ${pegColor(row.peg)}`}>{fmtPer(row.peg)}</td>
-              <td className="px-2 py-2 text-right">{row.roe != null ? `${row.roe.toFixed(1)}%` : '-'}</td>
-              <td className="px-2 py-2 text-center">
-                <EpsRevisionBadge rev1m={row.eps_rev_1m} rev3m={row.eps_rev_3m} />
-              </td>
-              <td className="px-2 py-2">
-                <button
-                  onClick={() => setExpandedCode(expandedCode === row.stock_code ? null : row.stock_code)}
-                  className="text-gray-500 hover:text-white text-xs"
-                  title="PER 밴드"
-                >
-                  {expandedCode === row.stock_code ? '▼' : '▶'}
-                </button>
-                {expandedCode === row.stock_code && (
-                  <PerBandChart stockCode={row.stock_code} />
-                )}
-              </td>
-              <td className="px-2 py-2">
-                <button
-                  onClick={() => onDelete(row.stock_code)}
-                  className="text-gray-600 hover:text-red-400 text-xs"
-                  title="삭제"
-                >
-                  ✕
-                </button>
-              </td>
+              {COLUMNS.map((col) => (
+                <td key={col.key} className={`px-2 py-3 align-top ${col.align === 'left' ? 'text-left' : 'text-right'}`}>
+                  {renderCell(col, row, onDelete)}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
       </table>
     </div>
   );
+}
+
+function renderCell(col, row, onDelete) {
+  const { key, type, yoy } = col;
+
+  // 종목명
+  if (key === 'stock_name') {
+    return (
+      <span className="font-medium text-white whitespace-nowrap">
+        {row.stock_name}
+        <span className="text-gray-600 ml-1">{row.stock_code}</span>
+      </span>
+    );
+  }
+
+  // FnGuide 링크
+  if (type === 'links') {
+    const code = row.stock_code;
+    return (
+      <a href={`https://comp.fnguide.com/SVO2/ASP/SVD_Consensus.asp?pGB=1&gicode=A${code}&cID=&MenuYn=Y&ReportGB=&NewMenuID=108&stkGb=701`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-400 whitespace-nowrap">연결</a>
+    );
+  }
+
+  // 삭제 버튼
+  if (type === 'action') {
+    return <button onClick={() => onDelete(row.stock_code)} className="text-gray-600 hover:text-red-400" title="삭제">✕</button>;
+  }
+
+  // EPS Rev 뱃지
+  if (type === 'badge') {
+    return <EpsRevisionBadge rev1m={row.eps_rev_1m} rev3m={row.eps_rev_3m} />;
+  }
+
+  // PER 밴드 범위
+  if (type === 'band_per') {
+    if (!row.band) return <span className="text-gray-600">-</span>;
+    return <span className="text-gray-400 text-[10px]">{fmtPer(row.band.per_5y_low)}~{fmtPer(row.band.per_5y_high)}</span>;
+  }
+
+  // PBR 밴드 범위
+  if (type === 'band_pbr') {
+    if (!row.band) return <span className="text-gray-600">-</span>;
+    return <span className="text-gray-400 text-[10px]">{fmtPer(row.band.pbr_5y_low)}~{fmtPer(row.band.pbr_5y_high)}</span>;
+  }
+
+  const v = row[key];
+
+  // 숫자 + YoY (+ OPM) 한 셀
+  if (yoy) {
+    const yoyVal = row[yoy];
+    const opmVal = col.opm ? row[col.opm] : null;
+    return (
+      <div className="leading-relaxed">
+        <div className="font-mono">{fmtNum(v)}</div>
+        <div className={`text-[11px] ${pctColor(yoyVal)}`}>{fmtPct(yoyVal)}</div>
+        {opmVal != null && <div className="text-[11px] text-gray-400">OPM {opmVal.toFixed(1)}%</div>}
+      </div>
+    );
+  }
+
+  // ROE (% 표시)
+  if (key === 'roe') {
+    return <span className="font-mono">{v != null ? `${v.toFixed(1)}%` : '-'}</span>;
+  }
+
+  // PEG (색상)
+  if (key === 'peg') {
+    return <span className={`font-mono ${pegColor(v)}`}>{fmtPer(v)}</span>;
+  }
+
+  // 시총
+  if (key === 'market_cap') {
+    return <span className="font-mono">{fmtNum(v)}</span>;
+  }
+
+  // Fwd PER / PBR
+  return <span className="font-mono">{fmtPer(v)}</span>;
 }
 
 function pegColor(peg) {
