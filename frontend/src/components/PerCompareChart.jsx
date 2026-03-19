@@ -1,13 +1,10 @@
 import { useMemo } from 'react';
-import {
-  ComposedChart, Bar, Scatter, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, Legend, Cell
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 /**
  * 종목별 PER 비교 차트
  * - 회색 바: 5년 PER 밴드 최소~최대
- * - 검정 가로선: 5년 평균 PER
+ * - 흰색 가로선: 5년 평균 PER
  * - 검정 점: 26E Fwd PER
  * - 파란 점: 27E PER
  */
@@ -35,11 +32,12 @@ export default function PerCompareChart({ stocks, onClose }) {
         return {
           name: s.stock_name,
           perLow,
-          perRange: perLow != null && perHigh != null ? Math.round((perHigh - perLow) * 10) / 10 : null,
           perHigh,
           avgPer,
           fwdPer: s.fwd_per ? Math.round(s.fwd_per * 10) / 10 : null,
           per27e,
+          // Bar가 그릴 높이 = perHigh (실제 렌더링은 CustomBar에서 처리)
+          barHeight: perHigh || 0,
         };
       })
       .sort((a, b) => (a.avgPer || 999) - (b.avgPer || 999));
@@ -50,6 +48,7 @@ export default function PerCompareChart({ stocks, onClose }) {
   const maxVal = Math.max(
     ...chartData.map((d) => Math.max(d.perHigh || 0, d.fwdPer || 0, d.per27e || 0))
   );
+  const yMax = Math.ceil(maxVal * 1.2);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={onClose}>
@@ -65,7 +64,7 @@ export default function PerCompareChart({ stocks, onClose }) {
 
         <div style={{ height: 340 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
+            <BarChart data={chartData} margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
               <XAxis
                 dataKey="name"
                 tick={{ fontSize: 11, fill: '#ccc' }}
@@ -80,34 +79,23 @@ export default function PerCompareChart({ stocks, onClose }) {
                 tick={{ fontSize: 10, fill: '#999' }}
                 axisLine={false}
                 tickLine={false}
-                domain={[0, Math.ceil(maxVal * 1.2)]}
+                domain={[0, yMax]}
                 tickFormatter={(v) => `${v}x`}
               />
               <Tooltip content={<CustomTooltip />} />
               <Legend content={<CustomLegend />} />
 
-              {/* 투명 베이스 (perLow까지) + 회색 범위 바 (perLow~perHigh) */}
-              <Bar dataKey="perLow" stackId="range" fill="transparent" barSize={32} />
-              <Bar dataKey="perRange" stackId="range" name="5Y 범위" barSize={32} radius={[2, 2, 0, 0]}>
-                {chartData.map((_, i) => (
-                  <Cell key={i} fill="#4b5563" />
-                ))}
-              </Bar>
-
-              {/* 5년 평균 PER — 검정 가로선 */}
-              <Scatter dataKey="avgPer" name="5Y 평균" shape={<AvgLine />} />
-
-              {/* 26E Fwd PER 점 */}
-              <Scatter dataKey="fwdPer" name="26E PER" fill="#1a1a1a" stroke="#fff" strokeWidth={1.5} r={5} />
-
-              {/* 27E PER 점 */}
-              <Scatter dataKey="per27e" name="27E PER" fill="#3b82f6" stroke="#3b82f6" strokeWidth={1} r={5} />
-            </ComposedChart>
+              <Bar
+                dataKey="barHeight"
+                barSize={36}
+                shape={(props) => <CustomBar {...props} yMax={yMax} />}
+              />
+            </BarChart>
           </ResponsiveContainer>
         </div>
 
         <p className="text-[10px] text-gray-600 mt-2">
-          * 회색 바: 5Y PER 최소~최대. 검정선: 5Y 평균. 검정점: 26E Fwd PER. 파란점: 27E PER.
+          * 회색 바: 5Y PER 최소~최대. 흰선: 5Y 평균. 검정점: 26E Fwd PER. 파란점: 27E PER.
           PER 50x 이상 이상치 제거.
         </p>
       </div>
@@ -115,40 +103,84 @@ export default function PerCompareChart({ stocks, onClose }) {
   );
 }
 
-/** 검정 가로선 커스텀 Shape (평균 표시용) */
-function AvgLine({ cx, cy }) {
-  if (cx == null || cy == null) return null;
-  const halfW = 16;
-  return <line x1={cx - halfW} x2={cx + halfW} y1={cy} y2={cy} stroke="#fff" strokeWidth={2} />;
+/** 커스텀 바 — 범위 바 + 평균선 + 26E/27E 점을 한 번에 렌더링 */
+function CustomBar({ x, y, width, height, payload, yMax, background }) {
+  if (!payload) return null;
+  const { perLow, perHigh, avgPer, fwdPer, per27e } = payload;
+
+  // 차트 영역의 총 높이와 Y 좌표 기준 계산
+  const chartBottom = y + height; // barHeight 기준 바닥 (Y=0 위치)
+  const totalPixelHeight = background?.height || height;
+  const pixelPerUnit = totalPixelHeight / yMax;
+
+  const toY = (val) => chartBottom - val * pixelPerUnit;
+  const cx = x + width / 2;
+
+  const elements = [];
+
+  // 1. 회색 범위 바 (perLow ~ perHigh)
+  if (perLow != null && perHigh != null) {
+    const barTop = toY(perHigh);
+    const barBottom = toY(perLow);
+    elements.push(
+      <rect
+        key="range"
+        x={x + 2}
+        y={barTop}
+        width={width - 4}
+        height={Math.max(barBottom - barTop, 1)}
+        fill="#4b5563"
+        rx={2}
+      />
+    );
+  }
+
+  // 2. 흰색 가로선 (5Y 평균)
+  if (avgPer != null) {
+    const lineY = toY(avgPer);
+    elements.push(
+      <line key="avg" x1={x + 1} x2={x + width - 1} y1={lineY} y2={lineY} stroke="#fff" strokeWidth={2} />
+    );
+  }
+
+  // 3. 검정 점 (26E Fwd PER)
+  if (fwdPer != null) {
+    elements.push(
+      <circle key="fwd" cx={cx} cy={toY(fwdPer)} r={5} fill="#1a1a1a" stroke="#fff" strokeWidth={1.5} />
+    );
+  }
+
+  // 4. 파란 점 (27E PER)
+  if (per27e != null) {
+    elements.push(
+      <circle key="27e" cx={cx} cy={toY(per27e)} r={5} fill="#3b82f6" stroke="#60a5fa" strokeWidth={1} />
+    );
+  }
+
+  return <g>{elements}</g>;
 }
 
-function CustomTooltip({ active, payload, label }) {
+function CustomTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const data = payload[0]?.payload;
   if (!data) return null;
   return (
     <div className="bg-gray-800 border border-gray-600 rounded p-2 text-xs shadow-lg">
-      <div className="font-bold text-white mb-1">{label}</div>
-      <div className="flex items-center gap-2">
-        <span className="w-3 h-2 rounded-sm inline-block" style={{ background: '#4b5563' }} />
-        <span className="text-gray-400">5Y 범위:</span>
-        <span className="text-white font-mono">{data.perLow != null ? `${data.perLow}~${data.perHigh}x` : '-'}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="w-3 h-0.5 inline-block" style={{ background: '#fff' }} />
-        <span className="text-gray-400">5Y 평균:</span>
-        <span className="text-white font-mono">{data.avgPer != null ? `${data.avgPer}x` : '-'}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#1a1a1a', border: '1.5px solid #fff' }} />
-        <span className="text-gray-400">26E PER:</span>
-        <span className="text-white font-mono">{data.fwdPer != null ? `${data.fwdPer}x` : '-'}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#3b82f6' }} />
-        <span className="text-gray-400">27E PER:</span>
-        <span className="text-white font-mono">{data.per27e != null ? `${data.per27e}x` : '-'}</span>
-      </div>
+      <div className="font-bold text-white mb-1">{data.name}</div>
+      <Row icon={<span className="w-3 h-2 rounded-sm inline-block" style={{ background: '#4b5563' }} />} label="5Y 범위" value={data.perLow != null ? `${data.perLow}~${data.perHigh}x` : '-'} />
+      <Row icon={<span className="w-3 h-0.5 inline-block" style={{ background: '#fff' }} />} label="5Y 평균" value={data.avgPer != null ? `${data.avgPer}x` : '-'} />
+      <Row icon={<span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#1a1a1a', border: '1.5px solid #fff' }} />} label="26E PER" value={data.fwdPer != null ? `${data.fwdPer}x` : '-'} />
+      <Row icon={<span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#3b82f6' }} />} label="27E PER" value={data.per27e != null ? `${data.per27e}x` : '-'} />
+    </div>
+  );
+}
+
+function Row({ icon, label, value }) {
+  return (
+    <div className="flex items-center gap-2">
+      {icon}
+      <span className="text-gray-400">{label}:</span>
+      <span className="text-white font-mono">{value}</span>
     </div>
   );
 }
@@ -164,17 +196,11 @@ function CustomLegend() {
     <div className="flex items-center justify-center gap-4 mt-1">
       {items.map((item) => (
         <div key={item.label} className="flex items-center gap-1.5 text-[11px] text-gray-400">
-          {item.type === 'bar' && (
-            <span className="w-4 h-2.5 rounded-sm inline-block" style={{ background: item.color }} />
-          )}
-          {item.type === 'line' && (
-            <span className="w-4 h-0.5 inline-block" style={{ background: item.color }} />
-          )}
+          {item.type === 'bar' && <span className="w-4 h-2.5 rounded-sm inline-block" style={{ background: item.color }} />}
+          {item.type === 'line' && <span className="w-4 h-0.5 inline-block" style={{ background: item.color }} />}
           {item.type === 'dot' && (
-            <span
-              className="w-3 h-3 rounded-full inline-block"
-              style={{ background: item.color, border: item.border ? `1.5px solid ${item.border}` : 'none' }}
-            />
+            <span className="w-3 h-3 rounded-full inline-block"
+              style={{ background: item.color, border: item.border ? `1.5px solid ${item.border}` : 'none' }} />
           )}
           {item.label}
         </div>
