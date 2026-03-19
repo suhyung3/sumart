@@ -104,16 +104,15 @@ export default function PerCompareChart({ stocks, onClose }) {
 }
 
 /** 커스텀 바 — 범위 바 + 평균선 + 26E/27E 점을 한 번에 렌더링 */
-function CustomBar({ x, y, width, height, payload, yMax, background }) {
-  if (!payload) return null;
-  const { perLow, perHigh, avgPer, fwdPer, per27e } = payload;
+function CustomBar({ x, y, width, height, payload, yMax }) {
+  if (!payload || !height || !payload.barHeight) return null;
+  const { perLow, perHigh, avgPer, fwdPer, per27e, barHeight } = payload;
 
-  // 차트 영역의 총 높이와 Y 좌표 기준 계산
-  const chartBottom = y + height; // barHeight 기준 바닥 (Y=0 위치)
-  const totalPixelHeight = background?.height || height;
-  const pixelPerUnit = totalPixelHeight / yMax;
-
-  const toY = (val) => chartBottom - val * pixelPerUnit;
+  // y = bar 상단 픽셀, y+height = Y=0 픽셀
+  // barHeight = perHigh 이므로 pixelPerUnit = height / barHeight
+  const bottom = y + height;
+  const ppu = height / barHeight;
+  const toY = (val) => bottom - val * ppu;
   const cx = x + width / 2;
 
   const elements = [];
