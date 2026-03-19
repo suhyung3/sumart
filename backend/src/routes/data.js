@@ -41,7 +41,13 @@ router.get('/dashboard', (req, res) => {
       };
     });
 
-    res.json(result);
+    // 전체 데이터 중 가장 오래된 fetched_at
+    const oldest = rows.reduce((min, r) => {
+      if (!r.fetched_at) return min;
+      return !min || r.fetched_at < min ? r.fetched_at : min;
+    }, null);
+
+    res.json({ data: result, lastUpdated: oldest });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

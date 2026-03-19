@@ -12,6 +12,7 @@ export default function App() {
   const [tab, setTab] = useState('simple');
   const [stocks, setStocks] = useState([]);
   const [dashboard, setDashboard] = useState([]);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -25,8 +26,9 @@ export default function App() {
     setLoading(true);
     try {
       const res = await fetch('/api/data/dashboard');
-      const data = await res.json();
-      setDashboard(data);
+      const json = await res.json();
+      setDashboard(json.data || json);
+      if (json.lastUpdated) setLastUpdated(json.lastUpdated);
     } catch (e) {
       console.error('대시보드 로드 실패:', e);
     } finally {
@@ -101,6 +103,14 @@ export default function App() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {lastUpdated && (
+            <span className="text-xs text-gray-500">
+              {new Date(lastUpdated).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}
+              {' '}
+              {new Date(lastUpdated).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+              {' 기준'}
+            </span>
+          )}
           <span className="text-xs text-gray-500">{stocks.length}종목</span>
           <button
             onClick={handleRefreshAll}
