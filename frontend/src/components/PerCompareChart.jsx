@@ -11,7 +11,7 @@ import {
  * - 검정 점: 26E Fwd PER
  * - 파란 점: 27E PER
  */
-export default function PerCompareChart({ stocks, onClose }) {
+export default function PerCompareChart({ stocks }) {
   const chartData = useMemo(() => {
     return stocks
       .filter((s) => s.fwd_per != null)
@@ -54,18 +54,9 @@ export default function PerCompareChart({ stocks, onClose }) {
   const yMax = Math.ceil(maxVal * 1.2);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={onClose}>
-      <div
-        className="bg-gray-900 border border-gray-700 rounded-lg p-5 shadow-2xl"
-        style={{ width: Math.min(chartData.length * 90 + 120, 1200), maxWidth: '95vw' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-white">PER 비교</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-white text-lg">&times;</button>
-        </div>
-
-        <div style={{ height: 340 }}>
+    <div className="mt-4 pt-3 border-t border-gray-700/50">
+      <div className="text-[11px] text-white font-bold mb-2">PER 비교</div>
+      <div style={{ height: 260 }}>
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartData} margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
               <XAxis
@@ -102,10 +93,8 @@ export default function PerCompareChart({ stocks, onClose }) {
           </ResponsiveContainer>
         </div>
 
-        <p className="text-[10px] text-gray-600 mt-2">
-          * 회색 바: 5Y PER 최소~최대. 흰선: 5Y 평균. 검정점: 26E Fwd PER. 파란점: 27E PER.
-          PER 50x 이상 이상치 제거.
-        </p>
+      <div className="text-[9px] text-gray-600 mt-1">
+        * 회색 바: 5Y PER 범위 / 흰선: 5Y 평균 / 검정점: 26E Fwd PER / 파란점: 27E PER. PER 50x 이상 이상치 제거.
       </div>
     </div>
   );
