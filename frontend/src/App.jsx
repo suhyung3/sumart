@@ -5,7 +5,7 @@ import SimpleView from './components/SimpleView';
 
 const TABS = [
   { key: 'simple', label: '요약' },
-  { key: 'detail', label: '상세' },
+  { key: 'detail', label: '아지트픽' },
 ];
 
 export default function App() {
@@ -105,9 +105,9 @@ export default function App() {
         <div className="flex items-center gap-3">
           {lastUpdated && (
             <span className="text-xs text-gray-500">
-              {new Date(lastUpdated).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}
+              {new Date(lastUpdated + '+09:00').toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric' })}
               {' '}
-              {new Date(lastUpdated).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+              {new Date(lastUpdated + '+09:00').toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit' })}
               {' 기준'}
             </span>
           )}

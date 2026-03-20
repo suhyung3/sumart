@@ -26,6 +26,28 @@ router.post('/', (req, res) => {
   }
 });
 
+// GET /api/stocks/search?q=삼성 — 종목 검색 (네이버)
+router.get('/search', async (req, res) => {
+  const { q } = req.query;
+  if (!q || q.trim().length < 1) return res.json([]);
+  try {
+    const axios = require('axios');
+    const { data } = await axios.get('https://ac.stock.naver.com/ac', {
+      params: { q: q.trim(), target: 'stock' },
+      timeout: 5000,
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    });
+    const filtered = (data?.items || [])
+      .filter(item => (item.typeCode === 'KOSPI' || item.typeCode === 'KOSDAQ') && /^\d{6}$/.test(item.code));
+    filtered.sort((a, b) => a.name.length - b.name.length);
+    const items = filtered.slice(0, 8)
+      .map(item => ({ code: item.code, name: item.name, market: item.typeCode }));
+    res.json(items);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
 // PATCH /api/stocks/:code — 종목 카테고리 변경
 router.patch('/:code', (req, res) => {
   const { category } = req.body;

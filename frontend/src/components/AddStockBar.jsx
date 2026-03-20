@@ -1,50 +1,64 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export default function AddStockBar({ onAdd }) {
-  const [code, setCode] = useState('');
-  const [name, setName] = useState('');
-  const [adding, setAdding] = useState(false);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [adding, setAdding] = useState(null);
+  const timerRef = useRef(null);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const trimCode = code.trim();
-    const trimName = name.trim();
-    if (!trimCode || !trimName) return;
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    const q = query.trim();
+    if (q.length < 1) { setResults([]); return; }
 
-    setAdding(true);
+    timerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/stocks/search?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        setResults(data);
+      } catch {
+        setResults([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(timerRef.current);
+  }, [query]);
+
+  const handleAdd = async (code, name) => {
+    setAdding(code);
     try {
-      await onAdd(trimCode, trimName);
-      setCode('');
-      setName('');
+      await onAdd(code, name);
+      setQuery('');
+      setResults([]);
     } finally {
-      setAdding(false);
+      setAdding(null);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2 mb-4">
+    <div className="mb-4">
       <input
         type="text"
-        placeholder="종목코드 (예: 005930)"
-        value={code}
-        onChange={(e) => setCode(e.target.value)}
-        className="px-3 py-1.5 text-sm bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 w-40"
-        maxLength={6}
+        placeholder="종목명 또는 코드 검색 (예: 삼성전자, 005930)"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="px-3 py-1.5 text-sm bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 w-80"
       />
-      <input
-        type="text"
-        placeholder="종목명 (예: 삼성전자)"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="px-3 py-1.5 text-sm bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 w-40"
-      />
-      <button
-        type="submit"
-        disabled={adding || !code.trim() || !name.trim()}
-        className="px-4 py-1.5 text-sm bg-green-600 hover:bg-green-700 disabled:bg-gray-700 rounded text-white"
-      >
-        {adding ? '추가 중...' : '추가'}
-      </button>
-    </form>
+      {results.length > 0 && (
+        <div className="mt-1 bg-gray-800 border border-gray-700 rounded overflow-hidden w-80">
+          {results.map(r => (
+            <button
+              key={r.code}
+              onClick={() => handleAdd(r.code, r.name)}
+              disabled={adding === r.code}
+              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-700 flex justify-between items-center disabled:opacity-50"
+            >
+              <span className="text-white">{r.name}</span>
+              <span className="text-gray-500 text-xs">{r.code} · {r.market}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

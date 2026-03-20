@@ -15,11 +15,16 @@ router.get('/dashboard', async (req, res) => {
       ORDER BY s.category, s.sort_order, s.created_at
     `).all();
 
-    // 밴드 데이터를 조인
+    // eps_trend JSON 파싱 + 밴드 데이터 조인
     const bandStmt = db.prepare('SELECT * FROM valuation_band WHERE stock_code = ? ORDER BY year');
     const result = rows.map((row) => {
+      // eps_trend: JSON → Array
+      let epsTrend = null;
+      if (row.eps_trend) {
+        try { epsTrend = JSON.parse(row.eps_trend); } catch (e) { /* ignore */ }
+      }
       const bands = bandStmt.all(row.stock_code);
-      if (bands.length === 0) return { ...row, band: null };
+      if (bands.length === 0) return { ...row, band: null, epsTrend };
 
       // 이상치 제거: PER 50 이상, PBR 20 이상은 실적 급감기 노이즈
       const PER_CAP = 50;
@@ -31,6 +36,7 @@ router.get('/dashboard', async (req, res) => {
 
       return {
         ...row,
+        epsTrend,
         band: {
           years: bands,
           per_5y_high: perHighs.length ? Math.max(...perHighs) : null,
@@ -225,6 +231,13 @@ async function refreshOne(stockCode, stockName) {
     r(calc.fwd_per), r(calc.fwd_pbr, 2), r(calc.peg, 2), r(calc.roe),
     r(calc.eps_rev_1m), r(calc.eps_rev_3m), calc.per_27e || null
   );
+
+  // 5.5. EPS Trend 저장 (스파크라인용)
+  if (trend?.fy1 && trend.fy1.length > 0) {
+    const sorted = [...trend.fy1].sort((a, b) => a.date.localeCompare(b.date));
+    const trendJson = JSON.stringify(sorted.map(p => ({ date: p.date, eps: p.eps ?? null })));
+    db.prepare('UPDATE fundamentals SET eps_trend=? WHERE stock_code=?').run(trendJson, stockCode);
+  }
 
   // 6. 컨센서스 목표가 저장
   try {

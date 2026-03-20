@@ -49,5 +49,6 @@ try { db.exec("ALTER TABLE stocks ADD COLUMN category TEXT DEFAULT ''"); } catch
 try { db.exec("ALTER TABLE fundamentals ADD COLUMN per_27e REAL"); } catch (e) { /* already exists */ }
 try { db.exec("ALTER TABLE fundamentals ADD COLUMN cons_target_cons INTEGER"); } catch (e) { /* already exists */ }
 try { db.exec("ALTER TABLE fundamentals ADD COLUMN cons_target_opt INTEGER"); } catch (e) { /* already exists */ }
+try { db.exec("ALTER TABLE fundamentals ADD COLUMN eps_trend TEXT"); } catch (e) { /* already exists */ }
 
 module.exports = db;
