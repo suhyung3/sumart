@@ -67,4 +67,56 @@ async function getPrice(stockCode) {
   return res.data.output;
 }
 
-module.exports = { getPrice };
+/**
+ * 현재가 + MA10/MA20 조회
+ * 일봉 20일치를 가져와 MA 계산
+ */
+async function getPriceWithMA(stockCode) {
+  await getAccessToken();
+
+  // 현재가
+  const priceRes = await axios.get(
+    `${getBaseUrl()}/uapi/domestic-stock/v1/quotations/inquire-price`,
+    {
+      headers: getHeaders('FHKST01010100'),
+      params: { FID_COND_MRKT_DIV_CODE: 'J', FID_INPUT_ISCD: stockCode },
+    }
+  );
+  const currentPrice = parseInt(priceRes.data.output?.stck_prpr, 10) || null;
+
+  // 일봉 (최근 20일)
+  const today = new Date();
+  const from = new Date(today);
+  from.setDate(from.getDate() - 45); // 주말/공휴일 감안 여유
+  const fmt = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
+
+  const chartRes = await axios.get(
+    `${getBaseUrl()}/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice`,
+    {
+      headers: getHeaders('FHKST03010100'),
+      params: {
+        FID_COND_MRKT_DIV_CODE: 'J',
+        FID_INPUT_ISCD: stockCode,
+        FID_INPUT_DATE_1: fmt(from),
+        FID_INPUT_DATE_2: fmt(today),
+        FID_PERIOD_DIV_CODE: 'D',
+        FID_ORG_ADJ_PRC: '0',
+      },
+    }
+  );
+
+  const candles = (chartRes.data.output2 || [])
+    .map((c) => parseInt(c.stck_clpr, 10))
+    .filter((v) => v > 0);
+
+  const ma10 = candles.length >= 10
+    ? Math.round(candles.slice(0, 10).reduce((a, b) => a + b, 0) / 10)
+    : null;
+  const ma20 = candles.length >= 20
+    ? Math.round(candles.slice(0, 20).reduce((a, b) => a + b, 0) / 20)
+    : null;
+
+  return { currentPrice, ma10, ma20 };
+}
+
+module.exports = { getPrice, getPriceWithMA };

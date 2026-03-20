@@ -7,6 +7,7 @@ const ROWS = [
   { key: 'op_27e', label: "영익 27E", fmt: (v) => fmtNum(v) },
   { key: 'opm_26e', label: 'OPM 26E', fmt: (v) => v != null ? `${v.toFixed(1)}%` : '-' },
   { key: 'opm_27e', label: 'OPM 27E', fmt: (v) => v != null ? `${v.toFixed(1)}%` : '-' },
+  { key: 'div_val', type: 'divider', label: '밸류에이션' },
   { key: 'fwd_per', label: 'Fwd PER', fmt: (v) => fmtPer(v) },
   { key: 'per_pos', label: 'PER 위치', type: 'position_per' },
   { key: 'fwd_pbr', label: 'Fwd PBR', fmt: (v) => fmtPer(v) },
@@ -15,6 +16,7 @@ const ROWS = [
   { key: 'eps_rev_1m', label: 'EPS Rev 1M', fmt: (v) => fmtPct(v), color: true },
   { key: 'eps_rev_3m', label: 'EPS Rev 3M', fmt: (v) => fmtPct(v), color: true },
   { key: 'div_rr', type: 'divider', label: '진입 손익비' },
+  { key: 'rr_current', label: '현재가', type: 'rr_field', field: 'current_price' },
   { key: 'rr_stop', label: '손절가', type: 'rr_field', field: 'stop_loss' },
   { key: 't_per_band', label: '①PER밴드', type: 'rr_field', field: 't_per_band' },
   { key: 't_cons_1m', label: '②컨센1M', type: 'rr_field', field: 't_cons_1m' },
@@ -91,6 +93,10 @@ function Section({ title, subtitle, stocks }) {
               {stocks.map((s) => (
                 <th key={s.stock_code} className="px-3 py-2 text-center font-medium text-white whitespace-nowrap min-w-[80px]">
                   {s.stock_name}
+                  <div className="flex justify-center gap-2 mt-0.5">
+                    <a href={`https://finance.naver.com/item/main.naver?code=${s.stock_code}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-green-600 hover:text-green-400 font-normal" title="네이버금융">N</a>
+                    <a href={`https://comp.fnguide.com/SVO2/ASP/SVD_Consensus.asp?pGB=1&gicode=A${s.stock_code}&cID=&MenuYn=Y&ReportGB=&NewMenuID=108&stkGb=701`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-600 hover:text-blue-400 font-normal" title="FnGuide 컨센서스">F</a>
+                  </div>
                 </th>
               ))}
             </tr>
@@ -133,8 +139,9 @@ function Section({ title, subtitle, stocks }) {
                     // 손익비 관련 — 백엔드 riskReward 데이터 사용
                     if (row.type === 'rr_field') {
                       const v = s.riskReward?.[row.field];
+                      const isCurrentPrice = row.field === 'current_price';
                       return (
-                        <td key={s.stock_code} className="px-3 py-2 text-center font-mono text-gray-200">
+                        <td key={s.stock_code} className={`px-3 py-2 text-center font-mono ${isCurrentPrice ? 'text-yellow-400 font-bold' : 'text-gray-200'}`}>
                           {fmtPrice(v)}
                         </td>
                       );

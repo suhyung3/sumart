@@ -6,7 +6,7 @@ const { calcFundamentals } = require('../services/calcService');
 const { round } = require('../utils/helpers');
 
 // GET /api/data/dashboard — 전체 대시보드 데이터 (밴드 포함)
-router.get('/dashboard', (req, res) => {
+router.get('/dashboard', async (req, res) => {
   try {
     const rows = db.prepare(`
       SELECT f.*, s.sort_order, s.category
@@ -41,11 +41,18 @@ router.get('/dashboard', (req, res) => {
       };
     });
 
-    // riskReward 계산
-    const withRR = result.map((row) => {
-      const riskReward = calcRiskReward(row);
+    // KIS 현재가 + MA 조회 후 riskReward 계산
+    const { getPriceWithMA } = require('../services/kisService');
+    const withRR = await Promise.all(result.map(async (row) => {
+      let kisData = null;
+      try {
+        kisData = await getPriceWithMA(row.stock_code);
+      } catch (e) {
+        console.warn(`[KIS] ${row.stock_code} 현재가/MA 조회 실패:`, e.message);
+      }
+      const riskReward = calcRiskReward(row, kisData);
       return { ...row, riskReward };
-    });
+    }));
 
     // 전체 데이터 중 가장 오래된 fetched_at
     const oldest = rows.reduce((min, r) => {
@@ -107,9 +114,11 @@ router.get('/:code/band', (req, res) => {
 
 /**
  * 손익비 계산 (3가지 목표가)
+ * kisData: { currentPrice, ma10, ma20 } — KIS API 실시간 데이터
+ * 손절가: max(-10%, MA10, MA20) → 가장 높은 값 = 가장 타이트한 손절
  */
-function calcRiskReward(row) {
-  const currentPrice = row.current_price;
+function calcRiskReward(row, kisData) {
+  const currentPrice = kisData?.currentPrice || row.current_price;
   if (!currentPrice) return null;
 
   const stopLoss = Math.round(currentPrice * 0.9);
@@ -123,7 +132,7 @@ function calcRiskReward(row) {
   const tConsTop25 = row.cons_target_opt || null;
 
   const calcRR = (target) => {
-    if (!target || !stopLoss || currentPrice <= stopLoss) return null;
+    if (!target || currentPrice <= stopLoss) return null;
     return Math.round(((target - currentPrice) / (currentPrice - stopLoss)) * 100) / 100;
   };
 

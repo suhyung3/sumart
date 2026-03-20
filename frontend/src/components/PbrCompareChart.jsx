@@ -34,7 +34,7 @@ export default function PbrCompareChart({ stocks }) {
           fwdPbr: s.fwd_pbr ? Math.round(s.fwd_pbr * 100) / 100 : null,
         };
       })
-      .sort((a, b) => (a.avgPbr || 999) - (b.avgPbr || 999));
+;
   }, [stocks]);
 
   if (chartData.length === 0) return null;

@@ -43,7 +43,7 @@ export default function PerCompareChart({ stocks }) {
           per27e,
         };
       })
-      .sort((a, b) => (a.avgPer || 999) - (b.avgPer || 999));
+;
   }, [stocks]);
 
   if (chartData.length === 0) return null;

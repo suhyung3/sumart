@@ -18,7 +18,6 @@ const COLUMNS = [
   { key: 'peg', label: 'PEG' },
   { key: 'roe', label: 'ROE' },
   { key: 'eps_rev', label: 'EPS Rev', type: 'badge' },
-  { key: 'fnguide', label: '', type: 'links' },
   { key: 'actions', label: '', type: 'action' },
 ];
 
@@ -86,19 +85,14 @@ function renderCell(col, row, onDelete) {
 
   // 종목명
   if (key === 'stock_name') {
+    const code = row.stock_code;
     return (
       <span className="font-medium text-white whitespace-nowrap">
         {row.stock_name}
-        <span className="text-gray-600 ml-1">{row.stock_code}</span>
+        <span className="text-gray-600 ml-1">{code}</span>
+        <a href={`https://finance.naver.com/item/main.naver?code=${code}`} target="_blank" rel="noopener noreferrer" className="ml-1.5 text-[10px] text-green-600 hover:text-green-400" title="네이버금융">N</a>
+        <a href={`https://comp.fnguide.com/SVO2/ASP/SVD_Consensus.asp?pGB=1&gicode=A${code}&cID=&MenuYn=Y&ReportGB=&NewMenuID=108&stkGb=701`} target="_blank" rel="noopener noreferrer" className="ml-1 text-[10px] text-blue-600 hover:text-blue-400" title="FnGuide 컨센서스">F</a>
       </span>
-    );
-  }
-
-  // FnGuide 링크
-  if (type === 'links') {
-    const code = row.stock_code;
-    return (
-      <a href={`https://comp.fnguide.com/SVO2/ASP/SVD_Consensus.asp?pGB=1&gicode=A${code}&cID=&MenuYn=Y&ReportGB=&NewMenuID=108&stkGb=701`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-400 whitespace-nowrap">연결</a>
     );
   }
 
