@@ -44,6 +44,16 @@ db.exec(`
   );
 `);
 
+// 태그 테이블 — 종목에 사용자 정의 태그 부여
+db.exec(`
+  CREATE TABLE IF NOT EXISTS stock_tags (
+    stock_code TEXT NOT NULL,
+    tag TEXT NOT NULL,
+    PRIMARY KEY (stock_code, tag),
+    FOREIGN KEY (stock_code) REFERENCES stocks(stock_code) ON DELETE CASCADE
+  );
+`);
+
 // 마이그레이션
 try { db.exec("ALTER TABLE stocks ADD COLUMN category TEXT DEFAULT ''"); } catch (e) { /* already exists */ }
 try { db.exec("ALTER TABLE fundamentals ADD COLUMN per_27e REAL"); } catch (e) { /* already exists */ }

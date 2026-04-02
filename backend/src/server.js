@@ -16,6 +16,7 @@ app.use(express.json());
 // API 라우트
 app.use('/api/stocks', require('./routes/stocks'));
 app.use('/api/data', require('./routes/data'));
+app.use('/api/tags', require('./routes/tags'));
 
 app.get('/health', (_, res) => res.json({ ok: true, time: new Date().toISOString() }));
 

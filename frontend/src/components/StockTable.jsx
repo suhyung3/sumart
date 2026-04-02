@@ -62,8 +62,9 @@ const GROUPS = [
 
 const DEFAULT_ACTIVE = ['earnings', 'valuation'];
 
-export default function StockTable({ data, onDelete }) {
+export default function StockTable({ data, onDelete, onAddTag, onRemoveTag }) {
   const [activeGroups, setActiveGroups] = useState(new Set(DEFAULT_ACTIVE));
+  const [tagInput, setTagInput] = useState({}); // { [stock_code]: string }
 
   const toggleGroup = (groupKey) => {
     setActiveGroups(prev => {
@@ -108,6 +109,36 @@ export default function StockTable({ data, onDelete }) {
                     <a href={`https://finance.naver.com/item/main.naver?code=${s.stock_code}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-green-600 hover:text-green-400 font-normal" title="네이버금융">N</a>
                     <a href={`https://comp.fnguide.com/SVO2/ASP/SVD_Consensus.asp?pGB=1&gicode=A${s.stock_code}&cID=&MenuYn=Y&ReportGB=&NewMenuID=108&stkGb=701`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-600 hover:text-blue-400 font-normal" title="FnGuide 컨센서스">F</a>
                     <button onClick={() => onDelete(s.stock_code)} className="text-[10px] text-gray-600 hover:text-red-400" title="삭제">✕</button>
+                  </div>
+                  {/* 태그 표시 + 추가 */}
+                  <div className="flex flex-wrap justify-center gap-0.5 mt-1">
+                    {(s.tags || []).map(tag => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0 text-[9px] bg-purple-900/50 text-purple-300 rounded-full font-normal"
+                      >
+                        #{tag}
+                        <button
+                          onClick={() => onRemoveTag(s.stock_code, tag)}
+                          className="text-purple-500 hover:text-red-400 ml-0.5"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      type="text"
+                      placeholder="+"
+                      value={tagInput[s.stock_code] || ''}
+                      onChange={(e) => setTagInput(prev => ({ ...prev, [s.stock_code]: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && tagInput[s.stock_code]?.trim()) {
+                          onAddTag(s.stock_code, tagInput[s.stock_code].trim());
+                          setTagInput(prev => ({ ...prev, [s.stock_code]: '' }));
+                        }
+                      }}
+                      className="w-10 text-[9px] bg-transparent border-b border-gray-700 text-purple-400 text-center outline-none focus:border-purple-500 font-normal"
+                    />
                   </div>
                 </th>
               ))}

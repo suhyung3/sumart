@@ -47,6 +47,17 @@ router.get('/dashboard', async (req, res) => {
       };
     });
 
+    // 태그 매핑 조인
+    const tagRows = db.prepare('SELECT stock_code, tag FROM stock_tags').all();
+    const tagMap = {};
+    for (const t of tagRows) {
+      if (!tagMap[t.stock_code]) tagMap[t.stock_code] = [];
+      tagMap[t.stock_code].push(t.tag);
+    }
+    for (const row of result) {
+      row.tags = tagMap[row.stock_code] || [];
+    }
+
     // KIS 현재가 + MA 조회 후 riskReward 계산
     const { getPriceWithMA } = require('../services/kisService');
     const withRR = await Promise.all(result.map(async (row) => {
